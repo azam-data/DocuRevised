@@ -123,7 +123,7 @@ The two choices that decide the project are Typst for pages and an existing spre
 | Area | Recommended | Why | Fallback |
 | --- | --- | --- | --- |
 | GUI shell | `eframe` / `egui` (0.29, as in MicroParquet) | Already known; immediate mode suits a block editor and a grid | `iced` or `slint` if rich text editing in egui proves too limiting |
-| Pagination and PDF | `typst` as a library, with its PDF and render crates *(guess: library API is usable but changes between releases)* | Solves pagination, fraction column widths, repeated table headers, fonts and PDF in one proven engine | Own layout on `parley` (text) + `krilla` (PDF); much more work |
+| Pagination and PDF | `typst` 0.15.1 as a library, with `typst-pdf`, `typst-render`, `typst-kit` (embedded fonts) and `typst-layout`; confirmed in P0-S1 | Solves pagination, fraction column widths, repeated table headers, fonts and PDF in one proven engine | Own layout on `parley` (text) + `krilla` (PDF); much more work |
 | Formula engine | `ironcalc` (each table = one sheet) *(guess: supports cross-sheet references, a few hundred Excel functions, and .xlsx read and write)* | Excel-compatible results and function coverage on day one; .xlsx export comes almost free | Own engine: hand-written Pratt parser + evaluator over the model, about 40 functions for the MVP |
 | Dependency graph | Inside the engine; if own engine, a reverse-dependency index in `ledger-calc` | Only needs dirty marking and topological order | `petgraph` |
 | Number formats | Own `ledger-numfmt` crate | Must handle lakh/crore grouping and must be identical for screen, PDF and export | `ssfmt`-style port *(guess: no mature Rust crate covers Excel codes fully)* |
@@ -146,7 +146,7 @@ The hardest problem is rich text editing in egui; the design avoids building a f
 | Editing on real pages (WYSIWYG) | Needs our own text layout that matches print exactly, plus hit testing on paginated output | Not in the MVP (decision D1). The editor column has the exact text width; the preview pane shows true pages. Revisit after Phase 5. |
 | Pagination | Line and page breaking, keep-with-next for headings, widows and orphans | Typst does it. Headings get keep-with-next; a block can be marked "start on new page". |
 | Tables across page breaks | Rows split mid-page, header must repeat, a row must not be cut in half | Typst tables with `header_rows` repeated on each page; rows are not split in the MVP (a row taller than a page is clipped, logged as a deviation). |
-| Column auto-fit | Two tables with 6 and 9 columns must both fill the text width and stay readable | Each column has a weight (default 1); width = text width × weight ÷ sum of weights, rendered as Typst `fr` units. A "fit to content" button sets weights from the longest formatted value per column, with a minimum width. Font size per table can be reduced for wide tables. |
+| Column auto-fit | Two tables with 6 and 9 columns must both fill the text width and stay readable | Default is fit to content (P0-S1): Typst measures the widest cell per column, header included, and uses those widths as `fr` weights, so the table fills the width; if natural widths exceed the width, the font shrinks to a 7pt minimum. Manual weights override it: width = text width × weight ÷ sum of weights. |
 | Number fidelity | The original pain: values change or lose formatting when moved between programs | Values are `f64` (same as Excel, so results match existing workbooks); display goes through one `ledger-numfmt` function everywhere. Exports write the raw value plus the format code, never pre-formatted text, except in .docx where formatted text is correct. |
 | Rounding display | 0.1 + 0.2 style floating errors showing on screen | Display rounds to 15 significant digits like Excel; `ROUND`, `ROUNDUP`, `ROUNDDOWN` available; a decimal mode is listed as an open question. |
 | Cross-table references | Renames, inserted rows and columns, deleted tables | References stored by table id; row and column inserts shift references like Excel; deleting a referenced table turns dependants into `#REF!`. |
@@ -248,4 +248,6 @@ Record any session result that differs from this spec here, newest first.
 
 | Date | Session | Deviation | Reason |
 | --- | --- | --- | --- |
+| 2026-11-25 | P0-S1 | Fit to content becomes the default column sizing; equal weights become an override | Equal weights let large lakh/crore values overflow into the next column |
+| 2026-11-25 | P0-S1 | A sans-serif font must be bundled (P4-S1) | Typst's embedded fonts have no sans-serif, so chart text fell back to a serif font |
 | 2026-11-25 | Spec | Rows taller than a page are clipped, not split | Rare in financial tables; Typst row splitting can be enabled later |
