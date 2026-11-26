@@ -24,7 +24,7 @@ The MVP is a single-user desktop app that can produce one real treasury or finan
 4. **Live charts.** A chart is bound to a table range and redraws when any input cell changes.
 5. **Real pages.** A4 or Letter, margins, headers and footers, page numbers, page breaks, and tables that continue onto the next page with their header row repeated.
 6. **Numbers in text.** A paragraph can show a live table value inline, for example "Total deposits stand at {Deposits!F12}".
-7. **Exact money arithmetic.** Financial values are decimals with an explicit rounding policy, so totals do not drift the way binary floating point can (decision D3).
+7. **Money results without floating-point noise.** IronCalc computes in binary floating point, and every result is rounded on the way out: cells with a fixed-decimal format are rounded to those places before other cells use them, and everything else to 15 significant digits (decision D3), so a difference that should be zero shows as zero.
 8. **Files that never get lost or silently broken.** A versioned file format from day one, atomic saves, and a recoverable backup.
 
 **Non-goals for the MVP**
@@ -119,7 +119,7 @@ enum TableKind {
 }
 
 struct Cell { input: CellInput, format: Option<NumFmt>, style: CellStyle }
-enum CellInput { Blank, Number(Decimal), Text(String), Bool(bool), Date(NaiveDate), Formula(Formula) }
+enum CellInput { Blank, Number(f64), Text(String), Bool(bool), Date(NaiveDate), Formula(Formula) }
 ```
 
 **Stable ids.** Every row, column and table has a permanent id. A formula is stored with id-based references (table id, row id, column id), and shown to the user as `Deposits!B4`. Inserting, deleting or moving rows and columns changes only the display order, so a reference never silently starts pointing at different data. Deleting a referenced row or column turns the reference into `#REF!`. Renaming a table changes only what is displayed.
@@ -156,9 +156,9 @@ The two choices that decide the project are Typst for pages and an existing spre
 | --- | --- | --- | --- |
 | GUI shell | `eframe` / `egui` (0.29, as in MicroParquet) | Already known; immediate mode suits a block editor and a grid | `iced` or `slint` if rich text editing in egui proves too limiting |
 | Pagination and PDF | `typst` 0.15.1 as a library, with `typst-pdf`, `typst-render`, `typst-kit` (embedded fonts) and `typst-layout`; confirmed in P0-S1 | Solves pagination, fraction column widths, repeated table headers, fonts and PDF in one proven engine | Own layout on `parley` (text) + `krilla` (PDF); much more work |
-| Formula engine | `ironcalc` behind a `ledger-calc` adapter (each table = one sheet) *(guess: supports cross-sheet references, a few hundred Excel functions, and .xlsx read and write; probably computes in `f64`)* | Excel-compatible results and function coverage on day one; .xlsx export comes almost free. P0-S2 checks how it fits decimals and stable ids | Own engine: hand-written Pratt parser + evaluator over the model, on `rust_decimal`, about 40 functions for the MVP |
+| Formula engine | `ironcalc` 0.9.1 behind a `ledger-calc` adapter (each table = one sheet); confirmed in P0-S2 | Cross-sheet references, rename, row insert and delete, and 26 of 26 finance functions correct; about 1 ms per recalculation at 5,000 cells; .xlsx export comes almost free | Own engine: hand-written parser + evaluator, about 40 functions for the MVP |
 | Dependency graph | Inside the engine; if own engine, a reverse-dependency index in `ledger-calc` | Only needs dirty marking and topological order | `petgraph` |
-| Decimal numbers | `rust_decimal` | 28 significant digits, exact for money, half-up and half-even rounding built in | `bigdecimal` |
+| Decimal conversion | `rust_decimal` | Turns rounded `f64` results into exact decimal text for display and export | Format the `f64` directly |
 | Number formats | Own `ledger-numfmt` crate | Must handle lakh/crore grouping and must be identical for screen, PDF and export | `ssfmt`-style port *(guess: no mature Rust crate covers Excel codes fully)* |
 | Charts | Own spec to SVG in `ledger-chart`; `resvg` to rasterize for the egui preview | Same SVG goes to screen, Typst and PDF, so charts look identical everywhere | `plotters` with its SVG backend |
 | File format | `serde`, `serde_json`, `zip` | Simple, diffable, versionable | `bincode` if files get large |
@@ -180,8 +180,8 @@ The hardest problem is rich text editing in egui; the design avoids building a f
 | Pagination | Line and page breaking, keep-with-next for headings, widows and orphans | Typst does it. Headings get keep-with-next; a block can be marked "start on new page". |
 | Tables across page breaks | Rows split mid-page, header must repeat, a row must not be cut in half | Typst tables with `header_rows` repeated on each page; rows are not split in the MVP (a row taller than a page is clipped, logged as a deviation). |
 | Column auto-fit | Two tables with 6 and 9 columns must both fill the text width and stay readable | Default is fit to content (P0-S1): Typst measures the widest cell per column, header included, and uses those widths as `fr` weights, so the table fills the width; if natural widths exceed the width, the font shrinks to a 7pt minimum. Manual weights override it: width = text width × weight ÷ sum of weights. |
-| Number fidelity | The original pain: values change or lose formatting when moved between programs | Values are decimals (`rust_decimal`, 28 significant digits) with an explicit rounding policy (D3); display goes through one `ledger-numfmt` function everywhere. Exports write the raw value plus the format code, never pre-formatted text, except in .docx where formatted text is correct. |
-| Rounding | 0.1 + 0.2 style floating errors; banks differ on half-up versus half-even | Decimal arithmetic removes the binary floating-point errors. `ROUND` uses the document's rounding policy: half away from zero by default, as Excel does, or half-even (banker's rounding) as a document setting. Functions with no exact decimal form (`IRR`, `XIRR`, `NPV` powers, `EXP`, `LN`) compute in `f64` and convert back, documented per function. |
+| Number fidelity | The original pain: values change or lose formatting when moved between programs | Values are `f64` in IronCalc, rounded on the way out (D3); display goes through one `ledger-numfmt` function everywhere. Exports write the rounded value plus the format code, never pre-formatted text, except in .docx where formatted text is correct. |
+| Rounding | 0.1 + 0.2 style floating errors, and differences that should be zero showing as 0.000000015 | Rounding rule (D3), proven in P0-S2: (1) a formula in a cell with a fixed-decimal format is stored in IronCalc as `=ROUND(<formula>, places)`, so later cells use the rounded value, like Excel's "precision as displayed" for that cell only; (2) every other result is snapped to 15 significant digits when it leaves the engine; (3) `-0` becomes `0`. Rounding is half away from zero, as in Excel. The formula bar always shows the user's formula without the wrapper. |
 | Cross-table references | Renames, inserted rows and columns, deleted tables | References stored by stable table, row and column ids, so inserts never redirect a formula; ranges grow when rows are inserted inside them, like Excel; deleting a referenced row, column or table turns dependants into `#REF!` with the reason. |
 | Undo | Edits touch text, cells, and recalculated values | Command pattern: every edit is an invertible command on inputs only; values are recomputed, never stored in undo history. |
 | Preview performance | Recompiling a long report on every keystroke | Debounce (about 300 ms), compile on a worker thread, Typst's incremental compilation; render only visible pages. |
@@ -218,7 +218,7 @@ Goal: prove the two big dependencies before building on them.
 ### Phase 3: Formulas and links (4 sessions)
 
 - **P3-S1 Engine adapter.** `ledger-calc` wraps the engine chosen in D2; table create, rename and delete map to sheet operations; values cached into the model.
-- **P3-S2 Formula editing.** Formula bar, `=` entry, click a cell or range (also in another table) to insert a reference, error display (`#DIV/0!`, `#REF!`, `#CYCLE!`) with a hover that names the originating cell and the reason, show formulas toggle, document rounding policy setting.
+- **P3-S2 Formula editing.** Formula bar, `=` entry, click a cell or range (also in another table) to insert a reference, error display (`#DIV/0!`, `#REF!`, `#CYCLE!`) with a hover that names the originating cell and the reason, show formulas toggle. The adapter adds and strips the `ROUND` wrapper from the cell's format (D3); changing a cell's decimal places re-wraps its formula.
 - **P3-S3 Structural edits.** Row and column insert, delete and move keep every id-based reference on the same data across tables; ranges grow on inserts inside them; table rename updates displayed references; undo of structural edits. Test: finish-line test 3.
 - **P3-S4 Inline fields.** Insert a live value from any cell into a paragraph, shown with that cell's format; updates on recalculation.
     - Acceptance: change one rate cell and see three dependent tables and a sentence update within 100 ms on a 5,000-cell document *(target)*.
@@ -264,15 +264,15 @@ The biggest risk is that Typst or IronCalc cannot be embedded the way this plan 
 ### Decisions
 
 - **D1 Editing model (decided 2026-11-25: block editor + live page preview).** Edit in a page-width column, see true pages beside it, export PDF. The alternative, typing directly on rendered pages like Word, needs our own layout engine and is roughly the work of Phases 1 to 4 again *(guess)*.
-- **D2 Formula engine (awaiting owner, recommended: own decimal engine).** P0-S2 showed IronCalc gets every reference and function right but computes in `f64` only, so it cannot meet D3. Recommended: own engine in `ledger-calc` on `rust_decimal` and stable ids, with IronCalc kept as a dev-dependency for differential tests of every function. This adds about 2 sessions to Phase 3 (P3-S0a parser, evaluator and dependency graph; P3-S0b the MVP function set). See `DEVLOG.md` for the options.
-- **D3 Numbers (decided 2026-11-26: decimal).** Financial values use `rust_decimal`, with a document rounding policy (half away from zero by default, half-even optional) and blank distinct from zero. Results may differ from Excel in the last digits where Excel's binary floating point is wrong; that is the intended fix. How this works with IronCalc is settled in P0-S2.
+- **D2 Formula engine (decided 2026-11-26: IronCalc).** IronCalc 0.9.1 behind the `ledger-calc` adapter, each table one sheet. The adapter maps stable row and column ids to sheet positions and adds error sources and tracing on top. The P0-S2 options are in `DEVLOG.md`.
+- **D3 Numbers (decided 2026-11-26: IronCalc `f64`, results rounded).** Cells with a fixed-decimal format are rounded to those places inside the engine, all other results to 15 significant digits, `-0` shown as `0`, half away from zero. Blank stays distinct from zero. This replaces the earlier `rust_decimal` plan.
 - **D4 Stable ids and table kinds (decided 2026-11-26).** Rows, columns and tables have permanent ids that formulas reference; tables are presentation or computational.
 
 ### Open questions
 
 - Which number formats do reports use most: lakh/crore grouping (12,34,56,789), millions, or both?
 - Is Bangla text or digits needed anywhere in reports (affects fonts and number formatting)?
-- Default rounding policy for your reports: half away from zero (Excel) or half-even (banker's rounding)?
+- Should half-even (banker's) rounding ever be needed? IronCalc's `ROUND` is half away from zero only, so half-even would need an adapter-side function.
 - Which Excel functions do current workbooks rely on? A sample workbook (with dummy numbers) would make the P0-S2 fixture realistic.
 - Do colleagues need to open the output in Word or Excel (raises Phase 6 priority), or is PDF enough?
 - Windows only, or Windows and Linux?
@@ -283,6 +283,7 @@ Record any session result that differs from this spec here, newest first.
 
 | Date | Session | Deviation | Reason |
 | --- | --- | --- | --- |
+| 2026-11-26 | P0-S2 | Owner chose IronCalc with rounded results over an own decimal engine; D3 changed from `rust_decimal` to the rounding rule | Keeps IronCalc's function coverage; the rounding rule makes the inexact money cases exact in P0-S2 |
 | 2026-11-26 | P0-S2 | P0-S2 checked against independent calculations and Microsoft's documented examples, not an Excel fixture workbook | No Excel workbook available yet |
 | 2026-11-26 | P0-S2 | IronCalc computes in `f64` only; D2 recommendation changed to an own decimal engine | Exact money arithmetic (D3) |
 | 2026-11-26 | Spec | Added stable ids, table kinds, versioned file format with atomic save, decimal arithmetic, error sources and Trace Calculation, prototype finish-line tests | Ideas from a second blueprint, approved by the owner; D3 changed from `f64` to decimal |

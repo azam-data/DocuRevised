@@ -256,6 +256,63 @@ fn decimals() -> Vec<(String, bool)> {
         .collect()
 }
 
+/// The rounding rule chosen with the owner (D2/D3): IronCalc computes in f64, and
+/// 1. every formula in a cell with a fixed-decimal format is stored in IronCalc as
+///    `=ROUND(<formula>, places)`, so the rounded value is what later cells use
+///    (Excel's "precision as displayed", per cell);
+/// 2. every other number is snapped to 15 significant digits when it leaves the engine.
+fn wrap(formula: &str, places: Option<u32>) -> String {
+    match places {
+        Some(p) => format!("=ROUND({},{p})", formula.trim_start_matches('=')),
+        None => formula.to_string(),
+    }
+}
+
+/// Round an f64 to 15 significant digits, the precision Excel displays.
+fn snap15(x: f64) -> f64 {
+    if x == 0.0 {
+        return 0.0; // also turns -0.0 into 0.0, so "-0.00" is never shown
+    }
+    if !x.is_finite() {
+        return x;
+    }
+    format!("{:.14e}", x).parse().unwrap()
+}
+
+fn rounded() -> Vec<(String, bool)> {
+    let mut m = model();
+    for i in 1..=10 {
+        set(&mut m, FUNCS, &format!("B{i}"), "0.1");
+    }
+    // (cell, formula, decimal places from the cell's format, exact answer)
+    let probes = [
+        ("A1", "=0.1+0.2", None, "0.3"),
+        ("A2", "=1.1*1.1", None, "1.21"),
+        ("A3", "=SUM(B1:B10)-1", Some(2), "0"),
+        ("A4", "=123456789.12+0.01-123456789.13", Some(2), "0"),
+        ("A5", "=A4*1000000", Some(2), "0"), // a later cell uses the rounded value
+        ("A6", "=100000*0.0725/365*30", Some(2), "595.89"),
+        ("A7", "=0.1+0.2", Some(2), "0.3"),
+    ];
+    for (c, f, places, _) in probes {
+        set(&mut m, FUNCS, c, &wrap(f, places));
+    }
+    m.evaluate();
+    probes
+        .iter()
+        .map(|(c, f, places, exact)| {
+            let v = snap15(num(&m, FUNCS, c));
+            let want = Decimal::from_str(exact).unwrap().normalize();
+            let ok = Decimal::from_str(&format!("{v}")).map(|d| d.normalize() == want).unwrap_or(false);
+            let rule = match places {
+                Some(p) => format!("ROUND to {p} places"),
+                None => "15 significant digits".to_string(),
+            };
+            (format!("{f:<34} {rule:<22} -> {v} (exact {exact})"), ok)
+        })
+        .collect()
+}
+
 /// Blank is not zero, and how errors are reported.
 fn blanks_and_errors() -> Vec<(String, bool)> {
     let mut m = model();
@@ -331,6 +388,7 @@ fn main() {
         ("Row insert and delete", structural),
         ("Functions", functions),
         ("Decimal behavior (FAIL = not exact, differs from rust_decimal)", decimals),
+        ("Rounded results (the chosen rule)", rounded),
         ("Blanks and errors", blanks_and_errors),
         ("Recalculation time", timing),
     ];
@@ -368,6 +426,19 @@ mod tests {
     #[test]
     fn row_inserts_keep_references_on_the_same_data() {
         all_pass(structural());
+    }
+
+    #[test]
+    fn rounding_rule_makes_money_results_exact() {
+        all_pass(rounded());
+    }
+
+    #[test]
+    fn snap15_keeps_real_digits() {
+        assert_eq!(snap15(0.1 + 0.2), 0.3);
+        assert_eq!(snap15(123456789.125), 123456789.125);
+        assert_eq!(snap15(-1.0 / 3.0), -0.333333333333333);
+        assert!(snap15(-0.0).is_sign_positive());
     }
 
     #[test]

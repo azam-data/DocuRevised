@@ -28,7 +28,7 @@ PASS IF                =IF(A1<0,1,2) = 1 (expected 1)
 PASS IFERROR           =IFERROR(1/0,7) = 7 (expected 7)
 PASS ROUND             =ROUND(1234.5678,2) = 1234.57 (expected 1234.57)
 PASS ROUNDUP           =ROUNDUP(3.141,2) = 3.15 (expected 3.15)
-PASS ROUNDDOWN         =ROUNDDOWN(-3.149,2) = -3.14 (expected -3.14)
+PASS ROUNDDOWN         =ROUNDDOWN(-2.719,2) = -2.71 (expected -2.71)
 PASS VLOOKUP           =VLOOKUP("Sylhet",F1:G3,2,FALSE) = 45 (expected 45)
 PASS XLOOKUP           =XLOOKUP("Chattogram",F1:F3,G1:G3) = 80 (expected 80)
 PASS INDEX/MATCH       =INDEX(G1:G3,MATCH("Dhaka",F1:F3,0)) = 120 (expected 120)
@@ -55,6 +55,16 @@ PASS =ROUND(0.125,2)                  IronCalc raw 0.13                   shown 
 FAIL =123456789.12+0.01-123456789.13  IronCalc raw 1.4901161193847656e-8  shown 0.000000015 decimal 0.00
 -> 5/9
 
+## Rounded results (the chosen rule)
+PASS =0.1+0.2                           15 significant digits  -> 0.3 (exact 0.3)
+PASS =1.1*1.1                           15 significant digits  -> 1.21 (exact 1.21)
+PASS =SUM(B1:B10)-1                     ROUND to 2 places      -> 0 (exact 0)
+PASS =123456789.12+0.01-123456789.13    ROUND to 2 places      -> 0 (exact 0)
+PASS =A4*1000000                        ROUND to 2 places      -> 0 (exact 0)
+PASS =100000*0.0725/365*30              ROUND to 2 places      -> 595.89 (exact 595.89)
+PASS =0.1+0.2                           ROUND to 2 places      -> 0.3 (exact 0.3)
+-> 7/7
+
 ## Blanks and errors
 PASS COUNT over a blank = 2
 PASS AVERAGE skips the blank = 15
@@ -65,6 +75,6 @@ PASS self reference shows #CIRC!
 -> 6/6
 
 ## Recalculation time
-PASS 5,000 cells: first evaluate 1.512997ms
-PASS change one cell and evaluate 1.071581ms (target 100 ms)
+PASS 5,000 cells: first evaluate 2.40101ms
+PASS change one cell and evaluate 1.703235ms (target 100 ms)
 -> 2/2

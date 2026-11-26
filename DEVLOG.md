@@ -46,7 +46,15 @@ The last two rows of the first table are the kind of error a reconciliation repo
 - **B. IronCalc in `f64`, snap results to 15 significant digits.** Fixes `0.1+0.2` and `1.1*1.1`, but not the large-number subtraction case, and drops the exact-money goal.
 - **C. Hybrid.** Own decimal engine for arithmetic and aggregation, IronCalc for everything else. Two engines must agree on references and errors; most complex.
 
-Tests: 5 pass (A1 parsing, cross-table, rename, row inserts, blanks and errors). `cargo clippy --workspace -- -D warnings` is clean.
+**Decision (owner, 2026-11-26): keep IronCalc and round the results (option B, made stronger).** The rule, now checked in the spike (`Rounded results` section, 7 of 7 exact):
+
+1. A formula in a cell with a fixed-decimal format is stored in IronCalc as `=ROUND(<formula>, places)`, so later cells use the rounded value. This fixes the large-number case: `=123456789.12+0.01-123456789.13` gives 0, and `=A4*1000000` built on it also gives 0.
+2. Every other result is snapped to 15 significant digits when it leaves the engine: `0.1+0.2` gives 0.3, `1.1*1.1` gives 1.21.
+3. `-0` becomes `0`, so "-0.00" never shows.
+
+Rounding is half away from zero, as in Excel. A cell with General format that is the difference of two large values (for example 1.49e-8) can still show noise; formatting money cells with fixed decimals avoids it, and P2-S2 will default computational number columns to 2 places.
+
+Tests: 7 pass (A1 parsing, cross-table, rename, row inserts, blanks and errors, rounding rule, 15-digit snap). `cargo clippy --workspace -- -D warnings` is clean.
 
 ## 2026-11-25 · P0-S1 Typst spike
 
