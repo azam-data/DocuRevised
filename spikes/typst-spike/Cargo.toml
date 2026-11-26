@@ -1,0 +1,12 @@
+[package]
+name = "typst-spike"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+typst = "=0.15.1"
+typst-pdf = "=0.15.1"
+typst-render = "=0.15.1"
+typst-kit = { version = "=0.15.1", features = ["embedded-fonts"] }
+typst-layout = "=0.15.1"
