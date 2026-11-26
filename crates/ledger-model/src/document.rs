@@ -43,6 +43,45 @@ impl Default for PageSetup {
     }
 }
 
+impl Paper {
+    /// Width and height in millimetres, portrait.
+    pub fn size_mm(self) -> (f32, f32) {
+        match self {
+            Paper::A4 => (210.0, 297.0),
+            Paper::Letter => (215.9, 279.4),
+        }
+    }
+}
+
+impl PageSetup {
+    /// Smallest text width or height the page setup dialog allows.
+    pub const MIN_TEXT_MM: f32 = 50.0;
+
+    /// Page width and height in millimetres, with orientation applied.
+    pub fn page_size_mm(&self) -> (f32, f32) {
+        let (w, h) = self.paper.size_mm();
+        if self.landscape { (h, w) } else { (w, h) }
+    }
+
+    /// Width of the text area between the left and right margins.
+    pub fn text_width_mm(&self) -> f32 {
+        self.page_size_mm().0 - self.margins.left_mm - self.margins.right_mm
+    }
+
+    /// Height of the text area between the top and bottom margins.
+    pub fn text_height_mm(&self) -> f32 {
+        self.page_size_mm().1 - self.margins.top_mm - self.margins.bottom_mm
+    }
+
+    /// Margins are not negative and leave at least [`Self::MIN_TEXT_MM`] each way.
+    pub fn is_valid(&self) -> bool {
+        let m = self.margins;
+        [m.top_mm, m.right_mm, m.bottom_mm, m.left_mm].iter().all(|v| v.is_finite() && *v >= 0.0)
+            && self.text_width_mm() >= Self::MIN_TEXT_MM
+            && self.text_height_mm() >= Self::MIN_TEXT_MM
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Alignment {
