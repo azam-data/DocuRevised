@@ -154,6 +154,7 @@ The two choices that decide the project are Typst for pages and an existing spre
 
 | Area | Recommended | Why | Fallback |
 | --- | --- | --- | --- |
+| 2026-11-26 | Spec | Added two-column row blocks, merged header cells, unit captions, dash for zero, chart limit lines and secondary axis | Layout of a sample board memo the owner shared |
 | GUI shell | `eframe` / `egui` (0.29, as in MicroParquet) | Already known; immediate mode suits a block editor and a grid | `iced` or `slint` if rich text editing in egui proves too limiting |
 | Pagination and PDF | `typst` 0.15.1 as a library, with `typst-pdf`, `typst-render`, `typst-kit` (embedded fonts) and `typst-layout`; confirmed in P0-S1 | Solves pagination, fraction column widths, repeated table headers, fonts and PDF in one proven engine | Own layout on `parley` (text) + `krilla` (PDF); much more work |
 | Formula engine | `ironcalc` 0.9.1 behind a `ledger-calc` adapter (each table = one sheet); confirmed in P0-S2 | Cross-sheet references, rename, row insert and delete, and 26 of 26 finance functions correct; about 1 ms per recalculation at 5,000 cells; .xlsx export comes almost free | Own engine: hand-written parser + evaluator, about 40 functions for the MVP |
@@ -247,6 +248,24 @@ Goal: prove the two big dependencies before building on them.
 
 **Trace Calculation view:** select a cell and see the tree of cells it depends on and the cells that depend on it, across tables, with values at each step and the first error highlighted. Paragraph and table styles, document templates (for example a monthly treasury report), find and replace, images, table of contents, footnotes, autosave and crash recovery, recent files, and decision on true on-page editing (D1 revisited).
 
+### Reference report layout
+
+The owner shared a monthly board memo as a layout reference (structure only; none of its names or figures are in this repo). It sets these requirements, each mapped to a phase:
+
+- **Memo header:** a title block with agenda item, memo number and date fields, a title and a subtitle. Phase 7 templates; paragraphs and headings cover it before that.
+- **Section = heading, chart(s), commentary.** Most sections pair one or two charts with a paragraph that quotes values from the same data. Inline fields (P3-S4) carry those values so the text never disagrees with the chart.
+- **Two items side by side.** Charts, and sometimes a chart and its commentary, sit in two columns. New: a **two-column row block** holding two blocks, each half the text width. Added to P4-S1 (Typst `grid`) and P5-S2 (chart size).
+- **Unit captions.** Each table or chart states its unit ("figures in million", "in crore", "in USD"). Tables get an optional caption line above the right edge (P2-S3).
+- **Grouped header rows.** Wide annex tables have a group header spanning several columns ("Outflow" over five columns, "Inflow" over five). New: **merged header cells** across columns in header rows (P2-S3).
+- **Column number row with formula legend.** A row of column numbers under the header, where derived columns say how they are built ("5 = 3 + 4"). Needs nothing new: a plain header row, but a good template example.
+- **Notes under a table** defining columns. A paragraph after the table is enough.
+- **Zero and blank shown as "-".** Number formats need an option to show zero as a dash (P2-S2), and blank stays distinct from zero.
+- **Total rows** in bold, including weighted average rates (SUMPRODUCT/SUM). SUMPRODUCT joins the P3 function checklist.
+- **Ratio tables with a limit column**, such as "Min 10%" or "5% to 25%", which are text next to computed percentages. Presentation and computational cells mixed in one table already work.
+- **Daily tables of 31 rows** that fit one page, and pages that switch between narrative pages and full-page annex tables. Page breaks and fit to content cover it.
+- **Charts used:** stacked column, clustered column, line with several series (some dashed), line with a horizontal limit line, pie, horizontal bar, column plus line on a second axis. P5-S1 adds a **limit line** (a constant series) and a **secondary axis** to the combo chart.
+- **Footer** with the memo title on the left and "Page x of y" on the right (P4-S3), and a two-person **signature block** (two-column row block).
+
 ## Risks, decisions and deviations
 
 The biggest risk is that Typst or IronCalc cannot be embedded the way this plan assumes; Phase 0 exists to find that out in two sessions instead of two months.
@@ -270,7 +289,7 @@ The biggest risk is that Typst or IronCalc cannot be embedded the way this plan 
 
 ### Open questions
 
-- Which number formats do reports use most: lakh/crore grouping (12,34,56,789), millions, or both?
+- Which number formats do reports use most: lakh/crore grouping (12,34,56,789), millions, or both? The sample memo uses Western grouping (1,234,567) with million, crore and USD units stated in captions, so both stay supported.
 - Is Bangla text or digits needed anywhere in reports (affects fonts and number formatting)?
 - Should half-even (banker's) rounding ever be needed? IronCalc's `ROUND` is half away from zero only, so half-even would need an adapter-side function.
 - Which Excel functions do current workbooks rely on? A sample workbook (with dummy numbers) would make the P0-S2 fixture realistic.

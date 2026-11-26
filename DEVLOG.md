@@ -2,6 +2,30 @@
 
 Newest first. One entry per session.
 
+## 2026-11-26 · P1-S1 Model and file format
+
+**Result: the document model, undo and redo, and the `.ldg` file format with safe saving are in place. All P1-S1 acceptance items pass.**
+
+New crates:
+
+- **`ledger-model`**: documents made of blocks (paragraph, heading, table, chart, page break), tables with permanent row, column and table ids (D4), and presentation or computational table kinds. Cells store what the user typed (number, text, date, formula and so on), never calculated values. Every change is a `Command`; applying one returns its inverse, which is how `History` does undo and redo. Table names must start with a letter, use letters, digits and `_`, and be unique ignoring case. `sample::document()` builds a small document with made-up numbers.
+- **`ledger-io`**: the `.ldg` file is a zip holding `manifest.json`, `document.json`, and one `tables/<id>.json` and `charts/<id>.json` per table and chart. Saving writes a temporary file and syncs it, copies the previous good file to `<name>.ldg.bak`, then renames the temporary file over the original. Opening a damaged file falls back to the `.bak`. A file written by a newer version opens read-only and is never saved over; a file that needs a newer reader is refused with a clear message. The migration list is empty until format 2.
+
+| Acceptance item | Result |
+| --- | --- |
+| Round trip of every block type | Pass. The sample has all five block types plus an inline field; JSON and `.ldg` round trips are equal. |
+| Undo of 100 random edits returns the original document | Pass for 4 seeds, and redo returns the edited document. Invalid random edits are checked to leave the document unchanged. |
+| A save killed part way leaves an openable file (finish-line test 7) | Pass. A test stops the save at three points; another starts a real process saving a 1,000-row document in a loop and kills it 12 times at different moments. The file opens every time, at least one finished save is seen, and the next normal save removes leftover temporary files. |
+| A file from a newer version opens read-only and is never overwritten | Pass. The file's bytes are unchanged after the refused save. |
+
+**Notes**
+
+- A row inserted above a cell moves it down but its id-keyed cell stays the same (test `row_insert_keeps_cells_on_their_ids`), which is what lets formulas follow their data in P3-S3.
+- Table blocks are only added and removed together with their table (`AddTable`, `RemoveTable`), so a block can never point at a missing table.
+- The owner shared a monthly board memo as a layout reference. Its structure is now in the spec under "Reference report layout" (two-column rows, merged header cells, unit captions, dash for zero, chart limit lines). Nothing from it is in the repo.
+
+Tests: 15 new (model 6, io 9), 26 in the workspace, all pass. `cargo clippy --workspace --all-targets -- -D warnings` is clean.
+
 ## 2026-11-26 · P0-S2 Calc spike (IronCalc 0.9.1)
 
 **Result: IronCalc gets every formula, reference and function right, but it computes in binary floating point (`f64`) only, so it cannot give exact decimal money arithmetic (decision D3). Recommendation for D2: our own decimal engine, with IronCalc kept as the test oracle.**
