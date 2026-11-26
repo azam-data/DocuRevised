@@ -264,7 +264,7 @@ The biggest risk is that Typst or IronCalc cannot be embedded the way this plan 
 ### Decisions
 
 - **D1 Editing model (decided 2026-11-25: block editor + live page preview).** Edit in a page-width column, see true pages beside it, export PDF. The alternative, typing directly on rendered pages like Word, needs our own layout engine and is roughly the work of Phases 1 to 4 again *(guess)*.
-- **D2 Formula engine (recommended: IronCalc, decided in P0-S2).** Own engine only if the spike fails.
+- **D2 Formula engine (awaiting owner, recommended: own decimal engine).** P0-S2 showed IronCalc gets every reference and function right but computes in `f64` only, so it cannot meet D3. Recommended: own engine in `ledger-calc` on `rust_decimal` and stable ids, with IronCalc kept as a dev-dependency for differential tests of every function. This adds about 2 sessions to Phase 3 (P3-S0a parser, evaluator and dependency graph; P3-S0b the MVP function set). See `DEVLOG.md` for the options.
 - **D3 Numbers (decided 2026-11-26: decimal).** Financial values use `rust_decimal`, with a document rounding policy (half away from zero by default, half-even optional) and blank distinct from zero. Results may differ from Excel in the last digits where Excel's binary floating point is wrong; that is the intended fix. How this works with IronCalc is settled in P0-S2.
 - **D4 Stable ids and table kinds (decided 2026-11-26).** Rows, columns and tables have permanent ids that formulas reference; tables are presentation or computational.
 
@@ -283,6 +283,8 @@ Record any session result that differs from this spec here, newest first.
 
 | Date | Session | Deviation | Reason |
 | --- | --- | --- | --- |
+| 2026-11-26 | P0-S2 | P0-S2 checked against independent calculations and Microsoft's documented examples, not an Excel fixture workbook | No Excel workbook available yet |
+| 2026-11-26 | P0-S2 | IronCalc computes in `f64` only; D2 recommendation changed to an own decimal engine | Exact money arithmetic (D3) |
 | 2026-11-26 | Spec | Added stable ids, table kinds, versioned file format with atomic save, decimal arithmetic, error sources and Trace Calculation, prototype finish-line tests | Ideas from a second blueprint, approved by the owner; D3 changed from `f64` to decimal |
 | 2026-11-25 | P0-S1 | Fit to content becomes the default column sizing; equal weights become an override | Equal weights let large lakh/crore values overflow into the next column |
 | 2026-11-25 | P0-S1 | A sans-serif font must be bundled (P4-S1) | Typst's embedded fonts have no sans-serif, so chart text fell back to a serif font |

@@ -1,0 +1,70 @@
+
+## Cross-table references
+PASS Loans!C2 = B2*Rates!B2 gives 75000
+PASS after Rates!B2 0.075 -> 0.08 it gives 80000
+-> 2/2
+
+## Table rename
+PASS after renaming Rates to Policy: formula =B2*Policy!B2, value 75000
+-> 1/1
+
+## Row insert and delete
+PASS insert row above: single ref now =Rates!B4, value 200
+PASS insert row inside range: SUM now =SUM(Rates!B3:B6), value 650 (expect 650)
+PASS delete the referenced row: cell shows #REF!, formula =#REF!
+-> 3/3
+
+## Functions
+PASS SUM               =SUM(A1:A6) = 22000 (expected 22000)
+PASS AVERAGE           =AVERAGE(A2:A6) = 18400 (expected 18400)
+PASS MIN               =MIN(A1:A6) = -70000 (expected -70000)
+PASS MAX               =MAX(A1:A6) = 26000 (expected 26000)
+PASS ABS               =ABS(A1) = 70000 (expected 70000)
+PASS COUNT             =COUNT(A1:A10) = 6 (expected 6)
+PASS COUNTIF           =COUNTIF(A1:A6,">15000") = 3 (expected 3)
+PASS SUMIF             =SUMIF(A1:A6,">15000") = 65000 (expected 65000)
+PASS SUMPRODUCT        =SUMPRODUCT(A2:A3,A4:A5) = 531000000 (expected 531000000)
+PASS IF                =IF(A1<0,1,2) = 1 (expected 1)
+PASS IFERROR           =IFERROR(1/0,7) = 7 (expected 7)
+PASS ROUND             =ROUND(1234.5678,2) = 1234.57 (expected 1234.57)
+PASS ROUNDUP           =ROUNDUP(3.141,2) = 3.15 (expected 3.15)
+PASS ROUNDDOWN         =ROUNDDOWN(-3.149,2) = -3.14 (expected -3.14)
+PASS VLOOKUP           =VLOOKUP("Sylhet",F1:G3,2,FALSE) = 45 (expected 45)
+PASS XLOOKUP           =XLOOKUP("Chattogram",F1:F3,G1:G3) = 80 (expected 80)
+PASS INDEX/MATCH       =INDEX(G1:G3,MATCH("Dhaka",F1:F3,0)) = 120 (expected 120)
+PASS PMT               =PMT(0.1/12,60,100000) = -2124.7044711268336 (expected -2124.704471126833)
+PASS NPV               =NPV(0.1,-10000,3000,4200,6800) = 1188.4434123352216 (expected 1188.4434123352212)
+PASS IRR               =IRR(A1:A6) = 0.08663094803653143 (expected 0.086630948)
+PASS XIRR              =XIRR(C1:C5,D1:D5) = 0.3733625335188315 (expected 0.373362535)
+PASS DATE              =DATE(2026,11,26) = 46352 (expected 46352)
+PASS EOMONTH           =EOMONTH(DATE(2011,1,1),1) = 40602 (expected 40602)
+PASS EDATE             =EDATE(DATE(2025,12,26),2) = 46079 (expected 46079)
+PASS YEARFRAC basis 3  =YEARFRAC(DATE(2012,1,1),DATE(2012,7,30),3) = 0.5780821917808219 (expected 0.578082192)
+PASS YEARFRAC basis 0  =YEARFRAC(DATE(2012,1,1),DATE(2012,7,30)) = 0.5805555555555556 (expected 0.580555556)
+-> 26/26
+
+## Decimal behavior (FAIL = not exact, differs from rust_decimal)
+FAIL =0.1+0.2                         IronCalc raw 0.30000000000000004    shown 0.3        decimal 0.3
+PASS =(0.1+0.2)=0.3                   IronCalc raw true                   shown TRUE       decimal 1
+PASS =ROUND(2.675,2)                  IronCalc raw 2.68                   shown 2.68       decimal 2.68
+PASS =ROUND(1.005,2)                  IronCalc raw 1.01                   shown 1.01       decimal 1.01
+FAIL =1.1*1.1                         IronCalc raw 1.2100000000000002     shown 1.21       decimal 1.21
+FAIL =SUM(B1:B10)-1                   IronCalc raw -1.1102230246251565e-16 shown -1.11022E-16 decimal 0.0
+PASS =ROUND(2.5,0)                    IronCalc raw 3.0                    shown 3          decimal 3
+PASS =ROUND(0.125,2)                  IronCalc raw 0.13                   shown 0.13       decimal 0.13
+FAIL =123456789.12+0.01-123456789.13  IronCalc raw 1.4901161193847656e-8  shown 0.000000015 decimal 0.00
+-> 5/9
+
+## Blanks and errors
+PASS COUNT over a blank = 2
+PASS AVERAGE skips the blank = 15
+PASS blank + 5 = 5
+PASS A1/blank shows #DIV/0!
+PASS an error passed on shows #DIV/0! (no origin cell available)
+PASS self reference shows #CIRC!
+-> 6/6
+
+## Recalculation time
+PASS 5,000 cells: first evaluate 1.512997ms
+PASS change one cell and evaluate 1.071581ms (target 100 ms)
+-> 2/2

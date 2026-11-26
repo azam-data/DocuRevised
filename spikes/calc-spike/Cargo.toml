@@ -1,0 +1,9 @@
+[package]
+name = "calc-spike"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+ironcalc_base = "=0.9.1"
+rust_decimal = "1.43"
