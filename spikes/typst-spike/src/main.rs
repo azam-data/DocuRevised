@@ -425,7 +425,7 @@ mod tests {
         src.truncate(cut);
         src.push_str("#check-width(\"narrow\", table(columns: (auto, auto), [a], [b]))\n");
         let world = SpikeWorld::new(fonts(), src);
-        let errs = try_compile(&world).err().expect("narrow table must fail the check");
+        let errs = try_compile(&world).map(|_| ()).expect_err("narrow table must fail the check");
         assert!(errs.iter().any(|e| e.contains("narrow")), "{errs:?}");
     }
 

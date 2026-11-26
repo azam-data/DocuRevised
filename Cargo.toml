@@ -1,3 +1,3 @@
 [workspace]
 resolver = "2"
-members = ["spikes/typst-spike", "spikes/calc-spike"]
+members = ["spikes/typst-spike", "spikes/calc-spike", "crates/ledger-model", "crates/ledger-io"]
