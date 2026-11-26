@@ -154,8 +154,7 @@ The two choices that decide the project are Typst for pages and an existing spre
 
 | Area | Recommended | Why | Fallback |
 | --- | --- | --- | --- |
-| 2026-11-26 | Spec | Added two-column row blocks, merged header cells, unit captions, dash for zero, chart limit lines and secondary axis | Layout of a sample board memo the owner shared |
-| GUI shell | `eframe` / `egui` (0.29, as in MicroParquet) | Already known; immediate mode suits a block editor and a grid | `iced` or `slint` if rich text editing in egui proves too limiting |
+| GUI shell | `eframe` / `egui` (0.37; the plan said 0.29, see deviations) | Already known; immediate mode suits a block editor and a grid | `iced` or `slint` if rich text editing in egui proves too limiting |
 | Pagination and PDF | `typst` 0.15.1 as a library, with `typst-pdf`, `typst-render`, `typst-kit` (embedded fonts) and `typst-layout`; confirmed in P0-S1 | Solves pagination, fraction column widths, repeated table headers, fonts and PDF in one proven engine | Own layout on `parley` (text) + `krilla` (PDF); much more work |
 | Formula engine | `ironcalc` 0.9.1 behind a `ledger-calc` adapter (each table = one sheet); confirmed in P0-S2 | Cross-sheet references, rename, row insert and delete, and 26 of 26 finance functions correct; about 1 ms per recalculation at 5,000 cells; .xlsx export comes almost free | Own engine: hand-written parser + evaluator, about 40 functions for the MVP |
 | Dependency graph | Inside the engine; if own engine, a reverse-dependency index in `ledger-calc` | Only needs dirty marking and topological order | `petgraph` |
@@ -302,6 +301,8 @@ Record any session result that differs from this spec here, newest first.
 
 | Date | Session | Deviation | Reason |
 | --- | --- | --- | --- |
+| 2026-11-26 | P1-S2 | egui and eframe 0.37 instead of 0.29; native file dialogs from `rfd` 0.18 | 0.37 is current, and its `egui_kittest` runs headless UI tests that click through the real menus and dialogs; 0.29 has no kittest |
+| 2026-11-26 | Spec | Added two-column row blocks, merged header cells, unit captions, dash for zero, chart limit lines and secondary axis | Layout of a sample board memo the owner shared |
 | 2026-11-26 | P0-S2 | Owner chose IronCalc with rounded results over an own decimal engine; D3 changed from `rust_decimal` to the rounding rule | Keeps IronCalc's function coverage; the rounding rule makes the inexact money cases exact in P0-S2 |
 | 2026-11-26 | P0-S2 | P0-S2 checked against independent calculations and Microsoft's documented examples, not an Excel fixture workbook | No Excel workbook available yet |
 | 2026-11-26 | P0-S2 | IronCalc computes in `f64` only; D2 recommendation changed to an own decimal engine | Exact money arithmetic (D3) |

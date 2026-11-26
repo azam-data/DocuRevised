@@ -156,3 +156,21 @@ fn sample_round_trips_through_json() {
     let back: Document = serde_json::from_str(&json).unwrap();
     assert_eq!(doc, back);
 }
+
+#[test]
+fn page_sizes_and_text_width() {
+    let mut page = PageSetup::default();
+    assert_eq!(page.page_size_mm(), (210.0, 297.0));
+    assert_eq!(page.text_width_mm(), 170.0);
+    page.landscape = true;
+    assert_eq!(page.page_size_mm(), (297.0, 210.0));
+    assert_eq!(page.text_width_mm(), 257.0);
+    page.paper = Paper::Letter;
+    page.landscape = false;
+    assert!((page.text_width_mm() - 175.9).abs() < 1e-4);
+    assert!(page.is_valid());
+    page.margins.left_mm = 150.0;
+    assert!(!page.is_valid(), "text narrower than the minimum");
+    page.margins.left_mm = -1.0;
+    assert!(!page.is_valid(), "negative margin");
+}

@@ -1,0 +1,20 @@
+[package]
+name = "ledger-app"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "ledger"
+path = "src/main.rs"
+
+[dependencies]
+eframe = "0.37.0"
+ledger-io = { path = "../ledger-io" }
+ledger-model = { path = "../ledger-model" }
+rfd = "0.18.0"
+
+[dev-dependencies]
+egui_kittest = "0.37.0"
+serde_json = "1.0.154"
+tempfile = "3.27.0"
+zip = { version = "9.8.2", default-features = false, features = ["deflate"] }

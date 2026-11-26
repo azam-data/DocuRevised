@@ -2,6 +2,34 @@
 
 Newest first. One entry per session.
 
+## 2026-11-26 · P1-S2 App shell
+
+**Result: the Ledger window opens, saves and reopens documents, has a page setup dialog, and shows the document in a column exactly as wide as the page's text area. All P1-S2 acceptance items pass.**
+
+Run it with `cargo run -p ledger-app --release -- --sample`.
+
+| Acceptance item | Result |
+| --- | --- |
+| eframe window and menu (New, Open, Save, Save As, Export PDF placeholder) | Pass. File, Edit, Format and View menus with keyboard shortcuts (Ctrl+N, O, S, Shift+S, Z, Y, Shift+Z, plus, minus, 0). Export PDF is shown greyed out with a note that it comes in Phase 4. File > Open sample document loads the dummy sample. |
+| Page setup dialog (A4 or Letter, orientation, margins) | Pass. Changes apply as one undoable step. Margins that leave less than 50 mm of text either way are refused, with a message in the dialog. |
+| Editor column sized to the text width at 100% zoom | Pass. 96 pixels per inch, so A4 with 20 mm margins gives 170 mm, about 642.5 pixels. The paper strip around it shows the margins. |
+| Zoom control | Pass. Steps from 50% to 300%, from the View menu, the status bar or Ctrl plus and minus. egui's own interface zoom is turned off so these keys zoom the document only. |
+
+**Also in this session**
+
+- Unsaved changes are tracked against the last saved document, so undoing back to it clears the `*` in the title. New, Open and closing the window ask Save, Don't save or Cancel when there are unsaved changes.
+- A file from a newer version opens read-only: Page setup is disabled and Save asks for a new name. A damaged file that opened from its backup is marked unsaved so the next save repairs it. Both show a message in the status bar.
+- The document view is read-only for now: headings, paragraphs with inline fields shown as `[value]`, tables as plain grids showing what was typed (formulas as text), chart placeholders and page breaks. Writing comes in P1-S3, the grid editor in P2-S1.
+- `PageSetup` gained `page_size_mm`, `text_width_mm`, `text_height_mm` and `is_valid` in `ledger-model`.
+
+**Findings**
+
+1. **egui 0.37, not 0.29.** 0.37 is current and comes with `egui_kittest`, which draws the real app headless and clicks through its menus and dialogs by their accessible names. The UI tests use it. Logged as a deviation.
+2. **The default egui font has no bold face.** Bold runs and headings show at the right size but not bold. P4-S1 already plans to bundle a sans font for charts and PDF; the editor should load the same font so screen and page match.
+3. **Linux needs `libxkbcommon-x11` and a GL or Vulkan driver** to open the window; they were missing on the cloud build machine and were installed to take the screenshot. Windows needs nothing extra.
+
+Tests: 19 new (session 8, UI 9, model 1, file names 1); 45 in the workspace, all pass. `cargo clippy --workspace --all-targets -- -D warnings` is clean.
+
 ## 2026-11-26 · P1-S1 Model and file format
 
 **Result: the document model, undo and redo, and the `.ldg` file format with safe saving are in place. All P1-S1 acceptance items pass.**
